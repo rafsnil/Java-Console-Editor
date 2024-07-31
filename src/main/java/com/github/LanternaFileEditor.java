@@ -7,42 +7,45 @@ import com.googlecode.lanterna.gui2.*;
 import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.*;
-import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.googlecode.lanterna.graphics.SimpleTheme.makeTheme;
 
 public class LanternaFileEditor {
 
-    private List<String> fileContent;
-    private String filePath;
+//    public LanternaFileEditor(Object object) {
+//        this.object = object;
+//    }
 
-    public LanternaFileEditor(String filePath) {
-        this.filePath = filePath;
-        this.fileContent = new ArrayList<>();
+    private static String loadObjectInTerminal(Object object) {
+        //This function should generate an yaml object from the object and display it in the terminal
+        DumperOptions options = new DumperOptions();
+        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        Yaml yaml = new Yaml(options);
+        String yamlString = yaml.dump(object);
+        String trimmedYaml = yamlString.substring(yamlString.indexOf("\n") + 1);
+        return trimmedYaml;
     }
 
-    public void loadFile() throws IOException {
-        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                fileContent.add(line);
-            }
-        }
-    }
-
-    public void displayAndEditFile() throws IOException {
+    public static Object displayAndEditFile(Object object) throws IOException {
+        AtomicReference<Object> returnValue = new AtomicReference<>();
         DefaultTerminalFactory terminalFactory = new DefaultTerminalFactory();
         Terminal terminal = terminalFactory.createTerminal();
+
         Screen screen = terminalFactory.createScreen();
         screen.startScreen();
 
         TerminalSize terminalSize = terminal.getTerminalSize();
         final TextBox textBox = new TextBox(new TerminalSize(terminalSize.getColumns(), terminalSize.getRows() - 3), TextBox.Style.MULTI_LINE);
-        textBox.setText(String.join("\n", fileContent));
-        textBox.setCaretPosition(0, 0); // Set caret to the beginning
+        textBox.setText(loadObjectInTerminal(object));
+
+
+//        textBox.setCaretPosition(0, 0); // Set caret to the beginning
 //        textBox.setBorder(BorderStyle.NONE); // Make TextBox borderless
         textBox.setSize(new TerminalSize(terminalSize.getColumns(), terminalSize.getRows()));
 
@@ -58,8 +61,10 @@ public class LanternaFileEditor {
 
         Button saveButton = new Button("Save", () -> {
             try {
-                saveFile(textBox.getText());
+                String yamlString = saveObject(textBox.getText());
+                returnValue.set(convertYamlToObject(yamlString));
                 screen.stopScreen();
+                System.out.println(returnValue);
                 System.out.println("Changes saved successfully.");
             } catch (IOException e) {
                 e.printStackTrace();
@@ -68,10 +73,12 @@ public class LanternaFileEditor {
 
         Button cancelButton = new Button("Cancel", () -> {
             try {
+                returnValue.set(convertYamlToObject(object.toString()));
                 screen.stopScreen();
+                System.out.println(returnValue);
                 System.out.println("Changes discarded.");
             } catch (IOException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
         });
 
@@ -96,32 +103,25 @@ public class LanternaFileEditor {
                 TextColor.ANSI.DEFAULT, // selectedBackground
                 TextColor.ANSI.DEFAULT // guiBackground
         );
+
+
+
         gui.setTheme(theme);
         gui.addWindowAndWait(window);
+        System.out.println("Returning from displayAndEditFile");
+
+        return returnValue;
     }
 
-    private void saveFile(String newContent) throws IOException {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
-            writer.write(newContent);
-        }
+    private static String saveObject(String newContent) throws IOException {
+        return newContent;
     }
 
-    public static void main(String[] args) {
-//        if (args.length != 1) {
-//            System.out.println("Usage: java LanternaFileEditor <file-path>");
-//            return;
-//        }
-//
-//        String filePath = args[0];
-        String filePath = Paths.get("").toAbsolutePath().resolve("gg.yaml").toString();
-        LanternaFileEditor editor = new LanternaFileEditor(filePath);
-
-        try {
-            editor.loadFile();
-            editor.displayAndEditFile();
-        } catch (IOException e) {
-            System.out.println("Error: " + e.getMessage());
-        }
+    //A function to convert Yaml to the given object T
+    private static Object convertYamlToObject(String yaml) {
+        Yaml y = new Yaml();
+        return y.loadAs(yaml, Object.class);
     }
+
 }
 

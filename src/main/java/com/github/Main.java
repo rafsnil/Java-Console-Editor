@@ -1,10 +1,7 @@
 package com.github;
 
 
-
-import java.io.IOException;
 import java.util.List;
-
 
 
 public class Main {
@@ -17,12 +14,17 @@ public class Main {
                 .build();
 
 
-        Object value = LanternaFileEditor.displayAndEditFile(student);
-        //log output
-        System.out.println(value.toString());
-        System.out.println("-----------------_FROM MAIN_--------------------");
+        try {
 
-        System.err.println(value);
+            Object value = ConsoleUiObjectEditor.displayAndEditObject(student);
+            System.out.println(value.toString());
+            System.out.println("-----------------_FROM MAIN_--------------------");
+            System.err.println(value);
+        } catch (Exception exception) {
+            System.out.println(exception.getMessage());
+        }
+        //log output
+
 
     }
 }

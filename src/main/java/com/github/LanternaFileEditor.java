@@ -12,6 +12,8 @@ import org.yaml.snakeyaml.Yaml;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.googlecode.lanterna.graphics.SimpleTheme.makeTheme;
@@ -32,8 +34,9 @@ public class LanternaFileEditor {
         return trimmedYaml;
     }
 
-    public static Object displayAndEditFile(Object object) throws IOException {
+    public static Object displayAndEditFile(Object object) throws IOException, InterruptedException {
         AtomicReference<Object> returnValue = new AtomicReference<>();
+
         DefaultTerminalFactory terminalFactory = new DefaultTerminalFactory();
         Terminal terminal = terminalFactory.createTerminal();
 
@@ -44,9 +47,6 @@ public class LanternaFileEditor {
         final TextBox textBox = new TextBox(new TerminalSize(terminalSize.getColumns(), terminalSize.getRows() - 3), TextBox.Style.MULTI_LINE);
         textBox.setText(loadObjectInTerminal(object));
 
-
-//        textBox.setCaretPosition(0, 0); // Set caret to the beginning
-//        textBox.setBorder(BorderStyle.NONE); // Make TextBox borderless
         textBox.setSize(new TerminalSize(terminalSize.getColumns(), terminalSize.getRows()));
 
         Panel mainPanel = new Panel();
@@ -59,11 +59,13 @@ public class LanternaFileEditor {
         Panel buttonPanel = new Panel();
         buttonPanel.setLayoutManager(new GridLayout(2));
 
+        BasicWindow window = new BasicWindow();
+
         Button saveButton = new Button("Save", () -> {
             try {
                 String yamlString = saveObject(textBox.getText());
                 returnValue.set(convertYamlToObject(yamlString));
-                screen.stopScreen();
+                window.close();
                 System.out.println(returnValue);
                 System.out.println("Changes saved successfully.");
             } catch (IOException e) {
@@ -72,14 +74,13 @@ public class LanternaFileEditor {
         });
 
         Button cancelButton = new Button("Cancel", () -> {
-            try {
                 returnValue.set(convertYamlToObject(object.toString()));
-                screen.stopScreen();
+                window.close();
                 System.out.println(returnValue);
                 System.out.println("Changes discarded.");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+//            } catch (IOException e) {
+//                e.printStackTrace();
+
         });
 
         buttonPanel.addComponent(saveButton);
@@ -88,7 +89,8 @@ public class LanternaFileEditor {
         mainPanel.addComponent(buttonPanel, LinearLayout.createLayoutData(LinearLayout.Alignment.End));
         mainPanel.addComponent(buttonPanel, LinearLayout.createLayoutData(LinearLayout.Alignment.Beginning));
 
-        BasicWindow window = new BasicWindow();
+
+
         window.setHints(Arrays.asList(Window.Hint.NO_DECORATIONS, Window.Hint.FULL_SCREEN));
         window.setComponent(mainPanel);
 
@@ -108,9 +110,13 @@ public class LanternaFileEditor {
 
         gui.setTheme(theme);
         gui.addWindowAndWait(window);
+
+        screen.stopScreen();
+
+
         System.out.println("Returning from displayAndEditFile");
 
-        return returnValue;
+        return returnValue.get();
     }
 
     private static String saveObject(String newContent) throws IOException {
